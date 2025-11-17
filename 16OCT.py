@@ -1,5 +1,3 @@
-import streamlit as st
-import pandas as pd
 import pygame
 import math
 import sys
@@ -230,3 +228,4 @@ while running:
 pygame.quit()
 
 sys.exit()
+
