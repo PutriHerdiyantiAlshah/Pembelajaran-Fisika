@@ -2,11 +2,6 @@ import pygame
 import math
 import sys
 
-data = load_data_cepat("file_data_besar.csv")
-st.dataframe(data)
-
-st.button("Klik saya")
-
 pygame.init()
 WIDTH, HEIGHT = 1000, 650
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -221,5 +216,6 @@ while running:
 pygame.quit()
 
 sys.exit()
+
 
 
