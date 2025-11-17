@@ -1,6 +1,20 @@
+import streamlit as st
+import pandas as pd
 import pygame
 import math
 import sys
+
+@st.cache_data  # <-- TAMBAHKAN INI
+def load_data_cepat(url):
+    # Fungsi ini HANYA akan dijalankan SEKALI
+    df = pd.read_csv(url)
+    # Proses rumit akan di-cache
+    return df
+
+data = load_data_cepat("file_data_besar.csv")
+st.dataframe(data)
+
+st.button("Klik saya")
 
 pygame.init()
 WIDTH, HEIGHT = 1000, 650
@@ -214,4 +228,5 @@ while running:
     clock.tick(30)
 
 pygame.quit()
+
 sys.exit()
