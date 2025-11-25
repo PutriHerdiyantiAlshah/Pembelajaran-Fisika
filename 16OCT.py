@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
 # --- 1. SETUP HALAMAN ---
-st.set_page_config(page_title="Simulasi Lensa Cembung", layout="wide")
-st.title("Simulasi Lensa Cembung (Streamlit Version)")
+st.set_page_config(page_title="Pembelajaran Fisika", layout="wide")
+st.title("Pembelajaran Fisika")
 
 # --- 2. LOGIKA FISIKA (DARI FILE ASLI ANDA) ---
 # Fungsi ini disalin langsung dari kode Pygame Anda karena logikanya universal
@@ -127,3 +127,4 @@ st.info(f"""
 - Indeks Bias Medium 2: {n2}
 - Hasil Refraksi: {snell(angle_incident, n1, n2) if snell(angle_incident, n1, n2) else 'TIR'}°
 """)
+
