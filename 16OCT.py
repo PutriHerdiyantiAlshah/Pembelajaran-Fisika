@@ -1,221 +1,129 @@
-import pygame
+import streamlit as st
 import math
-import sys
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
-pygame.init()
-WIDTH, HEIGHT = 1000, 650
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Simulasi Lensa Cembung - Versi Tombol Detail")
+# --- 1. SETUP HALAMAN ---
+st.set_page_config(page_title="Simulasi Lensa Cembung", layout="wide")
+st.title("Simulasi Lensa Cembung (Streamlit Version)")
 
-# Warna
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-YELLOW = (255, 255, 0)
-RED = (255, 50, 50)
-GREEN = (0, 200, 0)
-BLUE = (50, 100, 255)
-GRAY = (210, 210, 210)
-DARKGRAY = (160, 160, 160)
-BROWN = (139, 69, 19)
-ORANGE = (255, 140, 0)
-PURPLE = (180, 0, 180)
-
-font = pygame.font.SysFont("arial", 20)
-
-# Variabel utama
-angle_incident = 30
-n1, n2 = 1.0, 1.5
-show_refraction = True
-show_reflection = True
-object_list = ["Panah", "Pensil", "Kaca", "Bola", "Buku"]
-object_index = 0
-object_type = object_list[object_index]
-lens_diameter = 120
-
-# --- Fungsi fisika dasar ---
+# --- 2. LOGIKA FISIKA (DARI FILE ASLI ANDA) ---
+# Fungsi ini disalin langsung dari kode Pygame Anda karena logikanya universal
 def snell(theta_inc, n1, n2):
     try:
         theta_i_rad = math.radians(theta_inc)
-        theta_r_rad = math.asin(n1 * math.sin(theta_i_rad) / n2)
+        # Menghindari error pembagian jika n2 = 0 (meski jarang terjadi di slider)
+        if n2 == 0: return None 
+        sin_theta_r = n1 * math.sin(theta_i_rad) / n2
+        
+        # Cek Total Internal Reflection
+        if abs(sin_theta_r) > 1:
+            return None
+            
+        theta_r_rad = math.asin(sin_theta_r)
         return math.degrees(theta_r_rad)
     except ValueError:
-        return None  # Total internal reflection
+        return None
 
+# --- 3. INPUT USER (PENGGANTI TOMBOL PYGAME) ---
+# Di Streamlit, kita pakai Sidebar untuk kontrol, bukan tombol di layar
+with st.sidebar:
+    st.header("Pengaturan")
+    
+    # Pengganti tombol "Tambah/Kurang Sudut"
+    angle_incident = st.slider("Sudut Datang (°)", 0, 89, 30)
+    
+    # Pengganti tombol "Tambah/Kurang Diameter"
+    lens_diameter = st.slider("Diameter Lensa (px)", 60, 300, 120)
+    
+    # Pengganti tombol "Ganti Objek"
+    object_type = st.selectbox("Pilih Objek", ["Panah", "Pensil", "Kaca", "Bola", "Buku"])
+    
+    # Pengaturan Indeks Bias (Tambahan agar lebih interaktif)
+    n1 = st.number_input("n1 (Udara)", value=1.0, step=0.1)
+    n2 = st.number_input("n2 (Lensa)", value=1.5, step=0.1)
+    
+    # Pengganti tombol Toggle
+    show_reflection = st.checkbox("Tampilkan Refleksi", value=True)
+    show_refraction = st.checkbox("Tampilkan Refraksi", value=True)
 
-# --- Fungsi gambar ---
-def draw_optical_axis():
-    pygame.draw.line(screen, BLACK, (0, HEIGHT // 2), (WIDTH, HEIGHT // 2), 2)
-    text = font.render("Sumbu Optik", True, BLACK)
-    screen.blit(text, (20, HEIGHT // 2 - 30))
+# --- 4. AREA GAMBAR (PENGGANTI PYGAME SCREEN) ---
+# Kita menggunakan Matplotlib untuk menggambar grafik
+fig, ax = plt.subplots(figsize=(10, 6))
 
+# Set ukuran area gambar mirip dengan Pygame (1000x650)
+WIDTH, HEIGHT = 1000, 650
+ax.set_xlim(0, WIDTH)
+ax.set_ylim(HEIGHT, 0) # Membalik sumbu Y agar (0,0) ada di kiri atas seperti Pygame
+ax.set_aspect('equal')
+ax.axis('off') # Hilangkan border grafik agar terlihat seperti kanvas
 
-def draw_object(center):
-    """Menggambar objek (Panah, Pensil, Kaca, Bola, Buku) di sisi kiri"""
-    base_x = center[0] - 300
-    base_y = center[1]
+# Titik tengah
+center_x, center_y = WIDTH // 2, HEIGHT // 2
 
-    if object_type == "Panah":
-        pygame.draw.line(screen, BLUE, (base_x, base_y), (base_x, base_y - 100), 6)
-        pygame.draw.polygon(screen, BLUE, [(base_x - 10, base_y - 100),
-                                           (base_x + 10, base_y - 100),
-                                           (base_x, base_y - 120)])
-    elif object_type == "Pensil":
-        pygame.draw.rect(screen, BROWN, (base_x - 8, base_y - 100, 16, 100))
-        pygame.draw.polygon(screen, ORANGE, [(base_x - 8, base_y - 100),
-                                             (base_x + 8, base_y - 100),
-                                             (base_x, base_y - 115)])
-    elif object_type == "Kaca":
-        pygame.draw.rect(screen, (180, 240, 255), (base_x - 25, base_y - 100, 50, 100))
-        pygame.draw.rect(screen, BLACK, (base_x - 25, base_y - 100, 50, 100), 2)
-    elif object_type == "Bola":
-        pygame.draw.circle(screen, RED, (base_x, base_y - 50), 30)
-        pygame.draw.circle(screen, WHITE, (base_x, base_y - 50), 30, 2)
-    elif object_type == "Buku":
-        pygame.draw.rect(screen, PURPLE, (base_x - 30, base_y - 80, 60, 80))
-        pygame.draw.line(screen, WHITE, (base_x, base_y - 80), (base_x, base_y), 2)
-        pygame.draw.rect(screen, BLACK, (base_x - 30, base_y - 80, 60, 80), 2)
+# --- 5. FUNGSI GAMBAR ULANG ---
 
+# A. Gambar Sumbu Optik
+ax.axhline(y=center_y, color='black', linewidth=1)
+ax.text(20, center_y - 20, "Sumbu Optik", fontsize=10)
 
-def draw_lens(center):
-    """Menggambar lensa cembung"""
-    pygame.draw.ellipse(screen, (150, 200, 255),
-                        (center[0] - 10, center[1] - lens_diameter // 2,
-                         20, lens_diameter))
-    text = font.render("Lensa Cembung", True, BLACK)
-    screen.blit(text, (center[0] - 60, center[1] + lens_diameter // 2 + 10))
+# B. Gambar Lensa (Ellipse)
+# Menggunakan Patches Matplotlib
+lens = patches.Ellipse((center_x, center_y), 20, lens_diameter, 
+                       edgecolor='none', facecolor='#96c8ff', alpha=0.6)
+ax.add_patch(lens)
+ax.text(center_x - 50, center_y + lens_diameter//2 + 20, "Lensa Cembung", fontsize=10)
 
+# C. Gambar Objek
+base_x = center_x - 300
+base_y = center_y
 
-def draw_rays(center):
-    """Menggambar sinar datang, pantul, dan bias"""
-    inc_len = 250
-    inc_x = center[0] - inc_len * math.cos(math.radians(angle_incident))
-    inc_y = center[1] - inc_len * math.sin(math.radians(angle_incident))
+if object_type == "Panah":
+    ax.arrow(base_x, base_y, 0, -100, head_width=20, head_length=20, fc='blue', ec='blue', width=5)
+elif object_type == "Bola":
+    circle = patches.Circle((base_x, base_y - 50), 30, color='red')
+    ax.add_patch(circle)
+else:
+    # Untuk penyederhanaan di Matplotlib, objek lain digambar sebagai kotak/garis
+    rect = patches.Rectangle((base_x - 15, base_y - 100), 30, 100, color='brown')
+    ax.add_patch(rect)
+    ax.text(base_x - 20, base_y - 110, object_type, fontsize=12, color='blue')
 
-    # Sinar datang
-    pygame.draw.line(screen, YELLOW, (inc_x, inc_y), center, 3)
+# D. Gambar Sinar (Ray Tracing)
+inc_len = 250
+# Hitung koordinat awal sinar datang
+inc_x = center_x - inc_len * math.cos(math.radians(angle_incident))
+inc_y = center_y - inc_len * math.sin(math.radians(angle_incident))
 
-    if show_reflection:
-        # Sinar pantul
-        pygame.draw.line(screen, RED, center,
-                         (center[0] - inc_len * math.cos(math.radians(angle_incident)),
-                          center[1] + inc_len * math.sin(math.radians(angle_incident))), 3)
+# 1. Sinar Datang (Kuning)
+ax.plot([inc_x, center_x], [inc_y, center_y], color='orange', linewidth=3, label='Sinar Datang')
 
-    if show_refraction:
-        refr_angle = snell(angle_incident, n1, n2)
-        if refr_angle:
-            refr_len = 350
-            refr_x = center[0] + refr_len * math.cos(math.radians(refr_angle))
-            refr_y = center[1] + refr_len * math.sin(math.radians(refr_angle))
-            pygame.draw.line(screen, GREEN, center, (refr_x, refr_y), 3)
-        else:
-            msg = font.render("Total Internal Reflection!", True, RED)
-            screen.blit(msg, (50, 600))
+# 2. Sinar Pantul (Merah)
+if show_reflection:
+    refl_x = center_x - inc_len * math.cos(math.radians(angle_incident))
+    refl_y = center_y + inc_len * math.sin(math.radians(angle_incident))
+    ax.plot([center_x, refl_x], [center_y, refl_y], color='red', linewidth=2, linestyle='--', label='Refleksi')
 
+# 3. Sinar Bias (Hijau)
+if show_refraction:
+    refr_angle = snell(angle_incident, n1, n2)
+    if refr_angle is not None:
+        refr_len = 350
+        refr_x = center_x + refr_len * math.cos(math.radians(refr_angle))
+        refr_y = center_y + refr_len * math.sin(math.radians(refr_angle))
+        ax.plot([center_x, refr_x], [center_y, refr_y], color='green', linewidth=3, label='Refraksi')
+    else:
+        ax.text(center_x + 50, center_y + 50, "TOTAL INTERNAL REFLECTION!", color='red', fontsize=12, fontweight='bold')
 
-def draw_info():
-    info = [
-        f"Sudut Datang: {angle_incident}°",
-        f"n1 (Udara): {n1}",
-        f"n2 (Medium): {n2}",
-        f"Objek: {object_type}",
-        f"Diameter Lensa: {lens_diameter}px",
-        f"Refleksi: {'Ya' if show_reflection else 'Tidak'}",
-        f"Refraksi: {'Ya' if show_refraction else 'Tidak'}"
-    ]
-    for i, t in enumerate(info):
-        txt = font.render(t, True, BLACK)
-        screen.blit(txt, (20, 20 + i * 25))
+# --- 6. TAMPILKAN HASIL ---
+# Menampilkan grafik matplotlib ke Streamlit
+st.pyplot(fig)
 
-
-# --- Tombol interaktif ---
-def draw_button(text, x, y, w, h, action=None):
-    mouse = pygame.mouse.get_pos()
-    click = pygame.mouse.get_pressed()
-    rect = pygame.Rect(x, y, w, h)
-    color = DARKGRAY if rect.collidepoint(mouse) else GRAY
-    pygame.draw.rect(screen, color, rect, border_radius=8)
-    txt = font.render(text, True, BLACK)
-    screen.blit(txt, (x + 10, y + 8))
-
-    if rect.collidepoint(mouse) and click[0] == 1 and action:
-        pygame.time.wait(150)
-        action()
-
-
-# --- Aksi tombol ---
-def tambah_sudut():
-    global angle_incident
-    if angle_incident < 89:
-        angle_incident += 1
-
-
-def kurang_sudut():
-    global angle_incident
-    if angle_incident > 0:
-        angle_incident -= 1
-
-
-def ganti_objek():
-    global object_index, object_type
-    object_index = (object_index + 1) % len(object_list)
-    object_type = object_list[object_index]
-
-
-def tambah_diameter():
-    global lens_diameter
-    if lens_diameter < 300:
-        lens_diameter += 10
-
-
-def kurang_diameter():
-    global lens_diameter
-    if lens_diameter > 60:
-        lens_diameter -= 10
-
-
-def toggle_refleksi():
-    global show_reflection
-    show_reflection = not show_reflection
-
-
-def toggle_refraksi():
-    global show_refraction
-    show_refraction = not show_refraction
-
-
-# --- Loop utama ---
-clock = pygame.time.Clock()
-running = True
-
-while running:
-    screen.fill(WHITE)
-    center = (WIDTH // 2, HEIGHT // 2)
-
-    draw_optical_axis()
-    draw_object(center)
-    draw_lens(center)
-    draw_rays(center)
-    draw_info()
-
-    # Tombol kontrol
-    draw_button("Tambah Sudut (+1°)", 750, 40, 200, 40, tambah_sudut)
-    draw_button("Kurangi Sudut (-1°)", 750, 90, 200, 40, kurang_sudut)
-    draw_button("Ganti Objek", 750, 140, 200, 40, ganti_objek)
-    draw_button("Tambah Diameter", 750, 190, 200, 40, tambah_diameter)
-    draw_button("Kurangi Diameter", 750, 240, 200, 40, kurang_diameter)
-    draw_button("Tampilkan / Sembunyikan Refleksi", 700, 290, 280, 40, toggle_refleksi)
-    draw_button("Tampilkan / Sembunyikan Refraksi", 700, 340, 280, 40, toggle_refraksi)
-
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-
-    pygame.display.flip()
-    clock.tick(30)
-
-pygame.quit()
-
-sys.exit()
-
-
-
+# Info Box di bawah
+st.info(f"""
+**Info Simulasi:**
+- Sudut Datang: {angle_incident}°
+- Indeks Bias Medium 1: {n1}
+- Indeks Bias Medium 2: {n2}
+- Hasil Refraksi: {snell(angle_incident, n1, n2) if snell(angle_incident, n1, n2) else 'TIR'}°
+""")
